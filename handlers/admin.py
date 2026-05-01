@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 import os
 
 load_dotenv()
-ADMIN_IDS = os.getenv("ADMIN_ID")
+ADMIN_IDS = [int(id) for id in os.getenv("ADMIN_IDS").split(",")]
 admin_router = Router()
 
 # Admin ekanligini tekshirish uchun filtr
@@ -19,12 +19,16 @@ def is_admin(message: types.Message):
     return message.from_user.id in ADMIN_IDS
 
 # --- KATEGORIYA QO'SHISH ---
-@admin_router.message(Command("add_category"), is_admin)
+@admin_router.message(Command("add_category"))
 async def add_category_start(message: types.Message, state: FSMContext):
     await message.answer("Yangi kategoriya nomini kiriting (masalan: Reading):")
     await state.set_state(AdminStates.waiting_for_category_name)
 
-@admin_router.message(AdminStates.waiting_for_category_name, is_admin)
+# @admin_router.message(Command("add_category")) # is_admin filtrsiz
+# async def not_admin_warning(message: types.Message):
+#     await message.answer("⛔️ Bu komanda faqat adminlar uchun!")
+
+@admin_router.message(AdminStates.waiting_for_category_name)
 async def add_category_finish(message: types.Message, state: FSMContext, session: AsyncSession):
     new_cat = Category(name=message.text)
     session.add(new_cat)
@@ -33,12 +37,12 @@ async def add_category_finish(message: types.Message, state: FSMContext, session
     await state.clear()
 
 # --- MATERIAL (FAYL) QO'SHISH ---
-@admin_router.message(Command("add_material"), is_admin)
+@admin_router.message(Command("add_material"))
 async def add_material_start(message: types.Message, state: FSMContext):
     await message.answer("Material faylini yuboring (PDF, Audio yoki Video):")
     await state.set_state(AdminStates.waiting_for_file)
 
-@admin_router.message(AdminStates.waiting_for_file, is_admin, F.document | F.audio | F.video)
+@admin_router.message(AdminStates.waiting_for_file, F.document | F.audio | F.video)
 async def process_file(message: types.Message, state: FSMContext):
     # Fayl turini va ID sini aniqlash
     if message.document:
@@ -52,7 +56,7 @@ async def process_file(message: types.Message, state: FSMContext):
     await message.answer("Ushbu material uchun nom kiriting:")
     await state.set_state(AdminStates.waiting_for_title)
 
-@admin_router.message(AdminStates.waiting_for_title, is_admin)
+@admin_router.message(AdminStates.waiting_for_title)
 async def process_title(message: types.Message, state: FSMContext, session: AsyncSession):
     await state.update_data(title=message.text)
     

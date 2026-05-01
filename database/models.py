@@ -1,5 +1,5 @@
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
-from sqlalchemy import BigInteger, String, DateTime
+from sqlalchemy import BigInteger, String, DateTime, ForeignKey
 from datetime import datetime
 from typing import List
 
@@ -19,16 +19,20 @@ class Category(Base):
     __tablename__ = 'categories'
     
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(100), unique=True) # Masalan: Reading, Listening
+    name: Mapped[str] = mapped_column(String(100), unique=True)
     
-    # Kategoriya o'chsa, ichidagi materiallar ham o'chishi uchun (optional)
-    materials: Mapped[List["Material"]] = relationship(back_populates="category_rel", cascade="all, delete-orphan")
+    # Material bilan bog'lanish
+    materials: Mapped[list["Material"]] = relationship(back_populates="category_rel")
 
 class Material(Base):
     __tablename__ = 'materials'
     
     id: Mapped[int] = mapped_column(primary_key=True)
-    title: Mapped[str] = mapped_column(String(255))       # Fayl nomi (masalan: IELTS Reading Mock #1)
-    category: Mapped[str] = mapped_column(String(50))    # Bo'lim (Reading, Listening, etc.)
-    file_id: Mapped[str] = mapped_column(String(255))     # Telegram bergan file_id
-    file_type: Mapped[str] = mapped_column(String(20))   # document, audio, video
+    title: Mapped[str] = mapped_column(String(255))
+    file_id: Mapped[str] = mapped_column(String(255))
+    file_type: Mapped[str] = mapped_column(String(20))
+    
+    # MANA SHU QATOR JUDA MUHIM:
+    category_id: Mapped[int] = mapped_column(ForeignKey('categories.id'))
+    
+    category_rel: Mapped["Category"] = relationship(back_populates="materials")
