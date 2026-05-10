@@ -4,7 +4,7 @@ from aiogram.fsm.context import FSMContext
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from database.models import Category, Material
+from database.models import Category, Material, Question
 from utils.states import AdminStates
 # from config import ADMIN_IDS # config.py yoki .env dan olingan adminlar ro'yxati
 from dotenv import load_dotenv
@@ -15,8 +15,8 @@ ADMIN_IDS = [int(id) for id in os.getenv("ADMIN_IDS").split(",")]
 admin_router = Router()
 
 # Admin ekanligini tekshirish uchun filtr
-def is_admin(message: types.Message):
-    return message.from_user.id in ADMIN_IDS
+# def is_admin(message: types.Message):
+#     return message.from_user.id in ADMIN_IDS
 
 # --- KATEGORIYA QO'SHISH ---
 @admin_router.message(Command("add_category"))
@@ -94,3 +94,74 @@ async def process_category_selection(callback: types.CallbackQuery, state: FSMCo
     await callback.message.edit_text(f"✅ Material muvaffaqiyatli saqlandi!")
     await state.clear()
     await callback.answer()
+
+@admin_router.message(Command("add_question"))
+async def add_question_start(message: types.Message, state: FSMContext):
+    await message.answer("Test savolini matnini kiriting:")
+    await state.set_state(AdminStates.waiting_for_question_text)
+
+@admin_router.message(AdminStates.waiting_for_question_text)
+async def process_question_text(message: types.Message, state: FSMContext):
+    await state.update_data(q_text=message.text)
+    await message.answer(
+        "Endi variantlarni kiriting.\n"
+        "Format: Variant1, Variant2, Variant3, Variant4\n"
+        "*(Vergul bilan ajratilgan holda 4 ta variant yuboring)*"
+    )
+    await state.set_state(AdminStates.waiting_for_options)
+
+@admin_router.message(AdminStates.waiting_for_options)
+async def process_options(message: types.Message, state: FSMContext):
+    options = [opt.strip() for opt in message.text.split(",")]
+    if len(options) != 4:
+        await message.answer("Iltimos, aynan 4 ta variantni vergul bilan ajratib yuboring!")
+        return
+
+    await state.update_data(opt_a=options[0], opt_b=options[1], opt_c=options[2], opt_d=options[3])
+    
+    # To'g'ri javobni tanlash uchun tugmalar
+    kb = types.InlineKeyboardMarkup(inline_keyboard=[
+        [
+            types.InlineKeyboardButton(text="A", callback_data="correct_a"),
+            types.InlineKeyboardButton(text="B", callback_data="correct_b"),
+            types.InlineKeyboardButton(text="C", callback_data="correct_c"),
+            types.InlineKeyboardButton(text="D", callback_data="correct_d")
+        ]
+    ])
+    await message.answer("To'g'ri javob qaysi biri?", reply_markup=kb)
+    await state.set_state(AdminStates.waiting_for_correct_answer)
+
+@admin_router.callback_query(AdminStates.waiting_for_correct_answer, F.data.startswith("correct_"))
+async def process_correct_answer(callback: types.CallbackQuery, state: FSMContext):
+    correct_letter = callback.data.split("_")[1] # a, b, c yoki d
+    await state.update_data(correct=correct_letter)
+    
+    # Darajani tanlash
+    kb = types.InlineKeyboardMarkup(inline_keyboard=[
+        [types.InlineKeyboardButton(text="Beginner", callback_data="lvl_Beginner")],
+        [types.InlineKeyboardButton(text="Intermediate", callback_data="lvl_Intermediate")],
+        [types.InlineKeyboardButton(text="Advanced", callback_data="lvl_Advanced")]
+    ])
+    await callback.message.edit_text("Ushbu savol qaysi darajaga mos?", reply_markup=kb)
+    await state.set_state(AdminStates.waiting_for_test_level)
+
+@admin_router.callback_query(AdminStates.waiting_for_test_level, F.data.startswith("lvl_"))
+async def save_question(callback: types.CallbackQuery, state: FSMContext, session: AsyncSession):
+    lvl = callback.data.split("_")[1]
+    data = await state.get_data()
+    
+    new_q = Question(
+        text=data['q_text'],
+        option_a=data['opt_a'],
+        option_b=data['opt_b'],
+        option_c=data['opt_c'],
+        option_d=data['opt_d'],
+        correct_option=data['correct'],
+        level=lvl
+    )
+    
+    session.add(new_q)
+    await session.commit()
+    
+    await callback.message.edit_text(f"✅ Savol bazaga qo'shildi! (Daraja: {lvl})")
+    await state.clear()

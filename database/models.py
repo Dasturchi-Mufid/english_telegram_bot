@@ -36,3 +36,15 @@ class Material(Base):
     category_id: Mapped[int] = mapped_column(ForeignKey('categories.id'))
     
     category_rel: Mapped["Category"] = relationship(back_populates="materials")
+
+class Question(Base):
+    __tablename__ = 'questions'
+    
+    id: Mapped[int] = mapped_column(primary_key=True)
+    text: Mapped[str] = mapped_column(String(500)) # Savol matni
+    option_a: Mapped[str] = mapped_column(String(200))
+    option_b: Mapped[str] = mapped_column(String(200))
+    option_c: Mapped[str] = mapped_column(String(200))
+    option_d: Mapped[str] = mapped_column(String(200))
+    correct_option: Mapped[str] = mapped_column(String(1)) # 'a', 'b', 'c', yoki 'd'
+    level: Mapped[str] = mapped_column(String(20)) # Masalan: 'Beginner', 'Intermediate'

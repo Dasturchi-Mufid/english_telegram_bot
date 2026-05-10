@@ -13,6 +13,7 @@ async def cmd_start(message: types.Message, session: AsyncSession):
     user = result.scalars().first()
 
     if not user:
+        print('yo`q')
         # Yangi foydalanuvchini qo'shish
         new_user = User(
             tg_id=message.from_user.id,
@@ -22,6 +23,7 @@ async def cmd_start(message: types.Message, session: AsyncSession):
         await session.commit()
         welcome_text = f"Salom, {message.from_user.full_name}! IELTS tayyorlov botiga xush kelibsiz."
     else:
+        print('ha')
         welcome_text = f"Sizni yana ko'rganimizdan xursandmiz, {user.full_name}!"
 
     # Asosiy menyu tugmalari

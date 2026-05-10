@@ -13,6 +13,7 @@ from middlewares.db_middlewares import DbSessionMiddleware
 from handlers.start import start_router
 from handlers.admin import admin_router
 from handlers.materials import materials_router
+from handlers.quiz import quiz_router
 from middlewares.admin_middlewares import AdminCheckMiddleware
 
 async def main():
@@ -41,6 +42,7 @@ async def main():
     dp.include_router(admin_router)
     dp.include_router(start_router)
     dp.include_router(materials_router)
+    dp.include_router(quiz_router)
 
 
     print("🤖 Bot ishga tushdi!")

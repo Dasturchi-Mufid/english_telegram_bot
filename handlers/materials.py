@@ -64,3 +64,23 @@ async def send_specific_file(callback: types.CallbackQuery, session: AsyncSessio
             await callback.message.answer_video(video=m.file_id, caption=f"🎥 {m.title}")
     
     await callback.answer()
+
+@materials_router.callback_query(F.data == "back_to_categories")
+async def back_to_categories_handler(callback: types.CallbackQuery, session: AsyncSession):
+    # Bu funksiya show_categories funksiyasi bilan deyarli bir xil, 
+    # faqat u yangi xabar yubormaydi, mavjud xabarni tahrirlaydi.
+    
+    result = await session.execute(select(Category))
+    categories = result.scalars().all()
+
+    if not categories:
+        await callback.answer("Kategoriyalar topilmadi.", show_alert=True)
+        return
+
+    builder = types.InlineKeyboardMarkup(inline_keyboard=[
+        [types.InlineKeyboardButton(text=cat.name, callback_data=f"user_cat_{cat.id}")] 
+        for cat in categories
+    ])
+
+    await callback.message.edit_text("Bo'limni tanlang:", reply_markup=builder)
+    await callback.answer()
