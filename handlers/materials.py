@@ -1,7 +1,7 @@
 from aiogram import Router, types, F
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from database.models import Category, Material
+from database.models import Category, Material, User
 
 materials_router = Router()
 
@@ -27,25 +27,34 @@ async def show_categories(message: types.Message, session: AsyncSession):
 async def show_materials_by_category(callback: types.CallbackQuery, session: AsyncSession):
     category_id = int(callback.data.split("_")[-1])
     
-    # Tanlangan kategoriyadagi barcha materiallarni olish
+    # 1. Foydalanuvchining darajasini bazadan olamiz
+    user_res = await session.execute(select(User).where(User.tg_id == callback.from_user.id))
+    user = user_res.scalar_one_or_none()
+    
+    # Darajasi yo'q bo'lsa, Beginner deb hisoblaymiz
+    user_level = user.level if user and user.level else "Beginner"
+    
+    # 2. Tanlangan kategoriyadagi VA foydalanuvchi darajasidagi materiallarni olish
     result = await session.execute(
-        select(Material).where(Material.category_id == category_id)
+        select(Material).where(
+            Material.category_id == category_id,
+            Material.level == user_level # FILTR QO'SHILDI
+        )
     )
     materials = result.scalars().all()
 
     if not materials:
-        await callback.answer("Bu bo'limda hozircha materiallar yo'q.", show_alert=True)
+        await callback.answer(f"Ushbu bo'limda {user_level} darajasi uchun materiallar yo'q.", show_alert=True)
         return
 
-    # Materiallar ro'yxatini chiqarish
-    # Bu yerda har bir material uchun alohida tugma yoki ro'yxat chiqarish mumkin
     kb_builder = types.InlineKeyboardMarkup(inline_keyboard=[
         [types.InlineKeyboardButton(text=m.title, callback_data=f"send_file_{m.id}")]
         for m in materials
     ])
     kb_builder.inline_keyboard.append([types.InlineKeyboardButton(text="⬅️ Orqaga", callback_data="back_to_categories")])
 
-    await callback.message.edit_text("Materialni tanlang:", reply_markup=kb_builder)
+    await callback.message.edit_text(f"📖 {user_level} darajasi uchun materiallar:", reply_markup=kb_builder)
+    await callback.answer()
 
 @materials_router.callback_query(F.data.startswith("send_file_"))
 async def send_specific_file(callback: types.CallbackQuery, session: AsyncSession):

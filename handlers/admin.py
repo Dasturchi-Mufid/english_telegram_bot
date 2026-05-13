@@ -53,8 +53,24 @@ async def process_file(message: types.Message, state: FSMContext):
         f_id, f_type = message.video.file_id, "video"
 
     await state.update_data(file_id=f_id, file_type=f_type)
-    await message.answer("Ushbu material uchun nom kiriting:")
+
+    kb = types.InlineKeyboardMarkup(inline_keyboard=[
+        [types.InlineKeyboardButton(text="Beginner", callback_data="matlvl_Beginner")],
+        [types.InlineKeyboardButton(text="Intermediate", callback_data="matlvl_Intermediate")],
+        [types.InlineKeyboardButton(text="Advanced", callback_data="matlvl_Advanced")]
+    ])
+    await message.answer("Ushbu material qaysi darajaga mos?", reply_markup=kb)
+    await state.set_state(AdminStates.waiting_for_test_level)
+
+@admin_router.callback_query(AdminStates.waiting_for_test_level, F.data.startswith("matlvl_"))
+async def process_material_level(callback: types.CallbackQuery, state: FSMContext):
+    level = callback.data.split("_")[1]
+    await state.update_data(material_level=level)
+    
+    # 2-qadam: Nomini so'rash
+    await callback.message.edit_text(f"Tanlangan daraja: {level}\n\nEndi ushbu material uchun nom kiriting:")
     await state.set_state(AdminStates.waiting_for_title)
+    await callback.answer()
 
 @admin_router.message(AdminStates.waiting_for_title)
 async def process_title(message: types.Message, state: FSMContext, session: AsyncSession):
@@ -85,13 +101,18 @@ async def process_category_selection(callback: types.CallbackQuery, state: FSMCo
         title=data['title'],
         file_id=data['file_id'],
         file_type=data['file_type'],
-        category_id=cat_id
+        category_id=cat_id,
+        level=data['material_level'] # Yangi qo'shilgan Level
     )
     
     session.add(new_material)
     await session.commit()
     
-    await callback.message.edit_text(f"✅ Material muvaffaqiyatli saqlandi!")
+    await callback.message.edit_text(
+        f"✅ Material muvaffaqiyatli saqlandi!\n"
+        f"Nom: {data['title']}\n"
+        f"Daraja: {data['material_level']}"
+    )
     await state.clear()
     await callback.answer()
 

@@ -31,6 +31,7 @@ class Material(Base):
     title: Mapped[str] = mapped_column(String(255))
     file_id: Mapped[str] = mapped_column(String(255))
     file_type: Mapped[str] = mapped_column(String(20))
+    level: Mapped[str] = mapped_column(String(50), nullable=True, default="Beginner")
     
     # MANA SHU QATOR JUDA MUHIM:
     category_id: Mapped[int] = mapped_column(ForeignKey('categories.id'))
@@ -47,4 +48,4 @@ class Question(Base):
     option_c: Mapped[str] = mapped_column(String(200))
     option_d: Mapped[str] = mapped_column(String(200))
     correct_option: Mapped[str] = mapped_column(String(1)) # 'a', 'b', 'c', yoki 'd'
-    level: Mapped[str] = mapped_column(String(20)) # Masalan: 'Beginner', 'Intermediate'
+    level: Mapped[str] = mapped_column(String(20), default="Beginner")
